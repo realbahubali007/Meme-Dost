@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="referrer" content="no-referrer">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meme Dost</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e9ecff;--ink:#14142b;--me:#14142b;--me-text:#fff;--card:#fff;--accent:#ffd60a;--muted:#5a5f8a}
+@media (prefers-color-scheme:dark){:root{--bg:#10112a;--ink:#f1f2ff;--me:#ffd60a;--me-text:#14142b;--card:#1d1f45;--accent:#ffd60a;--muted:#9a9fd0}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,sans-serif;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;gap:12px}
+h1{font-size:1.4rem;font-weight:800;margin:0;letter-spacing:-.02em}
+select{font:inherit;background:var(--card);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:6px 10px}
+#stream{flex:1;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:14px}
+.empty{margin:auto;text-align:center;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+.chip{font:inherit;background:var(--card);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.chip:hover{background:var(--accent);color:#14142b}
+.me{align-self:flex-end;background:var(--me);color:var(--me-text);padding:10px 14px;border-radius:18px 18px 4px 18px;max-width:80%}
+.bot{align-self:flex-start;max-width:85%}
+.bot img{display:block;max-width:100%;max-height:340px;border-radius:4px 18px 18px 18px;border:3px solid var(--ink);background:var(--card)}
+.bot .actions{margin-top:6px;display:flex;gap:8px}
+.bot button{font:inherit;font-size:.85rem;background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;text-decoration:underline}
+.skel{width:220px;height:140px;border-radius:4px 18px 18px 18px;border:3px solid var(--ink);background:linear-gradient(90deg,var(--card),var(--accent),var(--card));background-size:200% 100%;animation:sh 1.1s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.card{background:var(--accent);color:#14142b;border:3px solid var(--ink);border-radius:4px 18px 18px 18px;padding:16px 20px;text-align:center;max-width:300px}.card b{display:block;font-size:3rem;line-height:1.1}.card span{display:block;margin-top:8px;font-weight:800;font-size:1.2rem;text-transform:uppercase;text-shadow:1px 1px 0 #fff}
+.err{color:#d33;align-self:flex-start}
+form{display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+input{flex:1;font:inherit;padding:12px 16px;border-radius:999px;border:2px solid var(--ink);background:var(--card);color:var(--ink)}
+input:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#send{font:inherit;font-weight:700;background:var(--accent);color:#14142b;border:2px solid var(--ink);border-radius:999px;padding:0 20px;cursor:pointer}
+#send:disabled{opacity:.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>Meme Dost</h1>
+  <select id="sass" aria-label="Attitude">
+    <option value="chill">Chill</option>
+    <option value="funny" selected>Funny</option>
+    <option value="savage">Savage</option>
+  </select>
+</header>
+<main id="stream" aria-live="polite">
+  <div class="empty" id="empty">
+    <div>Tera dost sirf memes mein jawab deta hai. Kuch bol!</div>
+    <div class="chips">
+      <button class="chip">whatsup man</button><button class="chip">job lag gayi bhai!</button>
+      <button class="chip">monday aa gaya...</button><button class="chip">aaj kya khaye?</button><button class="chip">IPL kaun jeetega</button>
+    </div>
+  </div>
+</main>
+<form id="f">
+  <input id="msg" placeholder="Hindi, English ya Hinglish, kuch bhi likh" autocomplete="off" maxlength="500" required>
+  <button id="send">Bhej</button>
+</form>
+<script>
+const stream = document.getElementById('stream'), f = document.getElementById('f'),
+      msg = document.getElementById('msg'), send = document.getElementById('send'),
+      sass = document.getElementById('sass');
+const API = 'https://msyosfrqicrbwqmxkgja.supabase.co/functions/v1/chat';
+const history = [], skipIds = {};
+
+function add(el){ document.getElementById('empty')?.remove(); stream.appendChild(el); stream.scrollTop = stream.scrollHeight; return el; }
+function div(cls, text){ const d = document.createElement('div'); d.className = cls; if(text) d.textContent = text; return d; }
+
+async function ask(text, skip = []){
+  send.disabled = true;
+  const wrap = add(div('bot')); wrap.appendChild(div('skel'));
+  try{
+    const r = await fetch(API, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message:text, history, skip, sass:sass.value })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Request failed');
+    wrap.innerHTML = '';
+    let img;
+    if(data.demo){ img = div('card'); const e=document.createElement('b'); e.textContent=data.emoji; const c=document.createElement('span'); c.textContent=data.caption; img.append(e,c); }
+    else { img = new Image(); img.src = data.image; img.alt = data.alt || 'meme reply'; img.onload = () => stream.scrollTop = stream.scrollHeight; }
+    const act = div('actions');
+    const re = document.createElement('button'); re.textContent = 'Dusra dikha';
+    skipIds[data.id||'d'] = true;
+    re.onclick = () => { wrap.remove(); ask(text, Object.keys(skipIds)); };
+    const dl = document.createElement('a'); dl.href = data.image; dl.target = '_blank'; dl.rel = 'noopener';
+    dl.textContent = 'Save'; dl.style.cssText = 'color:var(--muted);font-size:.85rem';
+    act.append(re); if(!data.demo) act.append(dl); wrap.append(img, act);
+    history.push({ role:'assistant', text: '[meme: ' + (data.alt||'') + ']' });
+  }catch(e){
+    wrap.replaceWith(div('err', e.message));
+  }finally{ send.disabled = false; msg.focus(); }
+}
+
+function submit(text){
+  history.push({ role:'user', text });
+  add(div('me', text));
+  Object.keys(skipIds).forEach(k => delete skipIds[k]);
+  ask(text);
+}
+f.addEventListener('submit', e => { e.preventDefault(); const t = msg.value.trim(); if(!t) return; msg.value = ''; submit(t); });
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => submit(c.textContent));
+</script>
+</body>
+</html>
